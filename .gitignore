@@ -1,0 +1,10 @@
+Coins
+Coin16
+*.root
+*.log
+*.so
+*~
+lib/
+*.pdf
+*.ps
+*.png
