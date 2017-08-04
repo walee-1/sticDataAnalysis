@@ -4,6 +4,7 @@ Coin16
 *.log
 *.so
 *~
+bin/
 lib/
 *.pdf
 *.ps
