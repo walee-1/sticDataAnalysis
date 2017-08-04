@@ -5,7 +5,6 @@ Coin16
 *.so
 *~
 lib/
-bin/*
 *.pdf
 *.ps
 *.png
