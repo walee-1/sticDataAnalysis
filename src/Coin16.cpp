@@ -7,7 +7,6 @@
 #include <iostream>
 #include <stdio.h>
 #include <list>
-
 //#include "EventDict.h"
 #include "EventType.h"
 
