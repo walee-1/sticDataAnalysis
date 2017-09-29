@@ -216,10 +216,11 @@ void sortList(list<stic3_data_t> *eventList){
 
 		}
 	}
+///PRINT OUT FRAME ENTRIES. ONLY USE FOR SMALL AMOUNT OT EVENTS!
 /*	it = eventList->begin();
 	cout <<"Frame "<< it->frame_number << endl;
 	do{
-		cout << "\t" << it->channel << "\t" << it->E_CC*32+it->E_fine <<"\t" << endl;
+		cout << "\t" << it->channel << "\t" << it->E_CC*32+it->E_fine <<"\t" << "time:  " << it->time << endl;
 		++it;
 
 	}while(it != eventList->end() );
