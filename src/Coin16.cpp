@@ -3,10 +3,12 @@
 #include "TH1F.h"
 #include "TFile.h"
 #include "TF1.h"
+#include "TH2F.h"
 #include "TBox.h"
 #include "TObject.h"
 #include "TColor.h"
 #include "TStyle.h"
+
 
 #include <iostream>
 #include <stdio.h>
@@ -26,43 +28,54 @@ unsigned int num_ch = 2;	//default number of channels (= required minimum)
 char* outputName;
 int CTW = 32; 			// Coincidence timing window given in fine counter bins (1 bin = 50.2 ps)
 int start_channel;
+int coin_counter;
 
 TH1F *histo_FE = new TH1F("frame_entries","frame_entries",20,0,20); //histo for number of events per frame (FE= frame events)
 			// name, name, num_bins, start, end)
 TH1F *histo_coin = new TH1F("num_coin", "Number of coincident channels", 16, 0, 16);
-TH1F *histo_coincident_channels = new TH1F("coin_ch", "channels involved in coincident events", 16, 32, 48);
+TH1F *histo_coincident_channels = new TH1F("coin_ch", "channels involved in coincident events", 64, 0, 64);
 TH1F *histo_cpf = new TH1F("cpf", "coincidences per frame", 10,0,10);
 TH1F *histo_frames_skipped = new TH1F("frames_skipped","number of skipped frames between two events (i.e. frame doesn't exist)",50,0,50);
 
-TH1F *histo_energy_coin = new TH1F("Energy_coincident_channels","Energy of coincident channels",15000,0,15000);
+
+TH1F *histo_energy_coin = new TH1F("Energy_coincident_channels","Energy of coincident channels",50000,0,50000); //historgram for coincident channel's energies for coincident events only (so to get an energy spectra)
 TH1F *histo_energy_coinlist1 = new TH1F("Energy_coincident_1st","Energy of first coincident channel",5000,0,5000);
 TH1F *histo_energy_coinlist2 = new TH1F("Energy_coincident_2nd","Energy of second coincident channel",15000,0,10000);
-TH1F *histo_energy_ch2 = new TH1F("Energy_ch2","Energy of ch2", 2000,0,2000);
+//TH1F *histo_energy_ch2 = new TH1F("Energy_ch2","Energy of ch2", 2000,0,2000); //histogram for debugging purposes, shows the full energy of a specific channel (chosen in the code)
 
 TH1F* histo_timediff_1_2 = new TH1F("Histogram", "Time difference between first and second coincident channel", 32, 0, 32*50.2);
 TH1F* histo_timediff_2_3 = new TH1F("timeDiff_2_3", "Time difference between second and third coincident channel", 32, 0, 32*50.2);
 TH1F* histo_timediff_3_4 = new TH1F("timeDiff_3_4", "Time difference between third and fourth coincident channel", 32, 0, 32*50.2);
 TH1F* histo_timediff_4_5 = new TH1F("timeDiff_4_5", "Time difference between fourth and fifth coincident channel", 32, 0, 32*50.2);
+TH1F* histo_timediff_1_5 = new TH1F("timeDiff_1_5", "Time difference between fourth and fifth coincident channel", 32, 0, 32*50.2); //last and first histo time diff
 
-TCanvas *c1=new TCanvas("sipm","sipm",600,600);
-TCanvas *c2=new TCanvas("Coincident_Energies");
+TH2F *sipm_3d = new TH2F("Sipm_Graphical", "Graphical representation of the Sipm", 4,0,4,4,0,4); //for lego plot of the sipm
+
+TH2F *sipm_text = new TH2F("2d_sipm","2d_sipm",4,0,4,4,0,4);
+
+TCanvas *c1=new TCanvas("sipm","sipm",600,600); //canvas for 2d drawing of sipm
+TCanvas *c3=new TCanvas("sipm3d","3dsipm",3000,3000); //canvas for 3d drawing of sipm (simply storing the histogram doesn't work properly)
+TCanvas *c2=new TCanvas("Coincident_Energies"); //canvas for the coincident energies.
+
 
 void sortList(list<stic3_data_t> *eventList);
 void getT_Diff_First_Last(list<stic3_data_t> *eventList);
 void coinSearch(list<stic3_data_t> *eventList);
-void boxdraw(double x1,double y1,double x2,double y2, int index, double max);
+void boxdraw(double x1,double y1,double x2,double y2, int index, double max);//--test--might change it with a 2d histogram contour or colored 2d histogram
 void sipmdraw(double max);
+void sipmdraw3d(double max); //function for 3d sipm drawing
 void channel_mapping();
 double find_max_array(int length);
 
 //***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***
 int main(int argc, char *argv[]){
 
-	if (argc<4){
-		printf("use: %s file outputName starting_channel_number_from_STiC\n",argv[0]);
+	if (argc<5){
+		printf("use: %s file outputName starting_channel_number_from_STiC number_of_coincidences\n",argv[0]);
 		printf("(file extention for outputName will be added automatically) \n\n");
 		return -1; //simple display or passed parameters
 	}
+	coin_counter=atoi(argv[4])-1;
 	file = argv[1]; //input file passed from argument
 	outputName = argv[2]; //output file passed from argument
 	start_channel=atoi(argv[3]); //starting channel number from argument
@@ -108,9 +121,10 @@ int main(int argc, char *argv[]){
 	while( i < (num_entries)) {
 
                 tree->GetEntry(i);
-		if(event->channel == 41 && event->energy>10){
-			histo_energy_ch2->Fill(event->energy);
-}
+		//if(event->channel == 41 && event->energy>10)
+//{
+		//	histo_energy_ch2->Fill(event->energy);
+//}
 		if(event -> frame_number == fr_num){			// all events from same frame are put in the list 
 			temp_list.push_back(*event);			// regardsless of its channel number
 			i++;
@@ -147,24 +161,21 @@ int main(int argc, char *argv[]){
 	histo_timediff_2_3->Write();
 	histo_timediff_3_4->Write();
 	histo_timediff_4_5->Write();
+	//histo_energy_coin->Write();
 
-
-	histo_energy_ch2->Write();
-	histo_energy_coin->Write();
+	//histo_energy_ch2->Write();
 	c2->cd();
+	gStyle->SetOptStat(111111);//--test--not doing it for the histogram only for the canvas, so might change this altogether
+	
 	histo_energy_coin->Draw();
-
-	char out1[128];
+	
+	char out1[128]; //--test--if you want to save an output pdf of coincident energy graph or need a canvas for it.
 	sprintf(out1, "%s_Coincident_E.pdf", outputName);
 	c2->SaveAs(out1);
-//	c2->SaveAs("Energies.pdf");
-//	c2->SaveAs("Energies.png");
 	c2->Write();
 
-
-
 	histo_frames_skipped->Write();
-	fout->Close();
+	
 
 //************** for drawing SiPM***********************
 
@@ -173,9 +184,24 @@ int main(int argc, char *argv[]){
 	double max=find_max_array(16); //just to find the maximum value for normalization which is used in coloring the graphical drawing
 	cout << "max:\t" << max << endl;
 	cout<<"Drawing SIPM"<<endl;
-	sipmdraw(max);
+	sipmdraw3d(max);
+	c1->cd();
+	sipm_3d->GetXaxis()->SetTitle("Bottom of SiPM");
+	sipm_3d->GetXaxis()->SetNdivisions(4);
+	sipm_3d->GetYaxis()->SetNdivisions(4);
+	sipm_3d->SetStats(0);
+	c1->SetRightMargin(0.18);
+	sipm_3d->Draw("COLZ");
+	sipm_text->Draw("SAME TEXT");
+	c1->Write();
+	c3->cd();
+	sipm_3d->SetStats(0);
+	c3->SetBottomMargin(0.08);
+	sipm_3d->Draw("LEGO2 PLC");
+	
+	c3->Write();
 //******************************************************
-
+	fout->Close();
 cout << "...finished! " << endl;
 	return 0;
 }
@@ -216,16 +242,7 @@ void sortList(list<stic3_data_t> *eventList){
 
 		}
 	}
-///PRINT OUT FRAME ENTRIES. ONLY USE FOR SMALL AMOUNT OT EVENTS!
-/*	it = eventList->begin();
-	cout <<"Frame "<< it->frame_number << endl;
-	do{
-		cout << "\t" << it->channel << "\t" << it->E_CC*32+it->E_fine <<"\t" << "time:  " << it->time << endl;
-		++it;
 
-	}while(it != eventList->end() );
-	cout << "----------------------------------" << endl;
-*/
 /*		EXAMPLE WITH INTEGERS:
 		for(int n = 4; n>1; n--){
 			for(int i = 0; i<n-1; i++){
@@ -302,19 +319,21 @@ void coinSearch(list<stic3_data_t> *eventList){
 			}				// ending up at the first position not to be a concidence
 		}while ( it2 != eventList->end() );
 
-		if ( ct_coincidences > 2) {		// Define a coincident event to have 3 or more events!
+		if ( ct_coincidences > coin_counter) {		// Define a coincident event to have 3 or more events!
 			histo_coin->Fill(ct_coincidences);
 			cpf++;				// Increment counter for coincidences per frame
 			histo_timediff_1_2->Fill(50.2*(timeStamps[1]-timeStamps[0]));	// Fill histo with first time difference
 			histo_timediff_2_3->Fill(50.2*(timeStamps[2]-timeStamps[1]));
 			if (ct_coincidences > 3) histo_timediff_3_4->Fill(50.2*(timeStamps[3]-timeStamps[2]));
-			if (ct_coincidences > 4) histo_timediff_4_5->Fill(50.2*(timeStamps[4]-timeStamps[3]));
-
+			if (ct_coincidences > 4) {
+				histo_timediff_4_5->Fill(50.2*(timeStamps[4]-timeStamps[3]));
+				histo_timediff_1_5->Fill(50.2*(timeStamps[4]-timeStamps[0]));	//fill histo with first and last time stamp
+			}	
 			for (int i = 0; i < ct_coincidences; i++){
 				histo_coincident_channels->Fill(coinChannels[i]);
 			}
 		}
-		if (ct_coincidences > 1)
+		if (ct_coincidences > coin_counter)
 		{
 			histo_energy_coin->Fill(dummy_energy);
 		}
@@ -374,63 +393,7 @@ void coinSearch(list<stic3_data_t> *eventList){
 	hist_dnl_tfine->Write();
 */
 
-void boxdraw(double x1,double y1,double x2,double y2, int index, double max) //function for drawing the box and filling it with color
-{
-	double rcom=0, bcom=0, gcom=0;
-	double color=physical_channel[index]/max;
-
-	int ci=1756+index; //color index for root to reference the custom defined color
-	if(color>0)
-{
-	rcom=0+color;
-	bcom=0;
-	gcom=1-color;
-}
-	/*else //if I ever want to change colors for dead channels. For now they are just black
-{
-	rcom=0;
-	bcom=1;
-	gcom=0;
-}*/
-//	rcom=0+color;
-//	bcom=1-color;
-	TColor *col= new TColor(ci,rcom, gcom, bcom); //defining a color outside of the standard root colors via rgb components
-	TBox *b1=new TBox(x1,y1,x2,y2); //draws the box and fills it. x1 y1 are the coordinates of origin and x2 y2 are coordinates of the top right corner 
-
-
-	b1->SetFillColor(ci);
-	b1->Draw("l");
-}
-
-void sipmdraw(double max) //function that provides the coordinates where to draw the box
-{
-	double x1=0, y1=0, x2=0.25, y2=0.25;
-	c1->cd();
-
-
-	for(int dummy=0;dummy<16;dummy++)
-	{
-		if (dummy%4==0 && dummy!=0) //to change rows after 4 boxes
-		{
-			y1=y1+0.25;
-			y2=y2+0.25;
-			x1=0;
-			x2=0.25;
-		}
-		if(max==0) //just so there is no division by zero in the normalization process
-		{
-			max=1;
-		}
-		boxdraw(x1,y1,x2,y2,dummy, max);
-		x1=x1+0.25;
-		x2=x2+0.25;
-
-	}
-	char out[128];
-	sprintf(out, "%s_sipm_graphical.png", outputName);
-	c1->SaveAs(out);
-}
-void channel_mapping()
+void channel_mapping() //function for mapping stic channels to physical sipm channels
 {
 	double out=0;
 	double temp=0;
@@ -440,7 +403,7 @@ void channel_mapping()
 	int count=0;
 	ifstream file2("../src/stic2channel.txt");
 	string line; 
- 	while(getline(file2, line)) //reads data from csv file and stores it
+ 	while(getline(file2, line)) //reads data from file and stores it
    	{
       		if (!line.length())
          		continue;
@@ -451,14 +414,14 @@ void channel_mapping()
    	}
 	for (int i=start_channel; i<start_channel+16;i++)
 	{	
-		temp=histo_coincident_channels->GetXaxis()->FindBin(sticch[i]);
-		out=histo_coincident_channels->GetBinContent(temp);
-		physical_channel[sipmch[i]]=out;
+		temp=histo_coincident_channels->GetXaxis()->FindBin(sticch[i]); //stores the stic channel number to a temp variable
+		out=histo_coincident_channels->GetBinContent(temp); //the channel number's coincident hit values are then stored in another variable
+		physical_channel[sipmch[i]]=out; //the out variable, containing the bin content of the stic channel number is finally stored in the corresponding physical sipm channel number
 	}
 	
 }
 
-double find_max_array(int length)
+double find_max_array(int length) //just finds the max value out of an array as well as prints the results while searching
 {
 	double max=0;
 	for(int i=0; i<length;i++)
@@ -471,4 +434,18 @@ double find_max_array(int length)
 	}
 	return(max);
 
+}
+void sipmdraw3d(double max)
+{
+	int k=0;
+	for(int y=0;y<4;y++)
+	{
+		for(int x=0;x<4;x++)
+		{
+			sipm_3d->Fill(x,y,physical_channel[k]);
+			sipm_text->Fill(x,y,k+1);
+			k++;
+			
+		}
+	}
 }

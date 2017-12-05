@@ -1,5 +1,6 @@
 Coins
 Coin16
+*.o
 *.root
 *.log
 *.so
