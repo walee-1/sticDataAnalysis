@@ -292,9 +292,10 @@ void coinSearch(list<stic3_data_t> *eventList){
 		ct_coincidences++;
 		list<stic3_data_t>::iterator it2=it;
 		++it2;
+		if(it2 == eventList->end()) { break;}
 		do {
 			int time_diff = (it->time)-(it2->time); 
-			if ( time_diff < CTW && time_diff > -CTW && it2->energy>70 ) {		// CTW = coincidence timing window
+			if ( time_diff < CTW && time_diff > -CTW && it2->energy>70) {		// CTW = coincidence timing window
 				coinChannels[ct_coincidences] = it2->channel;
 				timeStamps[ct_coincidences] = it2->time;
 				dummy_energy=dummy_energy+it2->energy;
