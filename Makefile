@@ -10,13 +10,17 @@ IMPORT_LIBS=
 LDFLAGS=-Wl,--no-as-needed `root-config --glibs`
 
 #binaries=CoinS
-binaries=Coin16
+#binaries=Coin16
+binaries=Coin2
 obj=src/tdc_ch_values.o
 
 all: $(binaries)
 
 reader: src/EventDict.o $(obj)
 	$(CC) $^ $(LDFLAGS) $(LIBS) -o bin/reader
+
+Coin2:	src/EventDict.o $(obj) src/Coin2.o
+	$(CC) $^ $(CFLAGS) $(LDFLAGS) $(LIBS) -o bin/Coin2
 
 Coin16: src/EventDict.o $(obj) src/Coin16.o
 	$(CC) $^ $(CFLAGS) $(LDFLAGS) $(LIBS) -o bin/Coin16
