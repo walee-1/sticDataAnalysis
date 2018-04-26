@@ -181,9 +181,17 @@ int main(int argc, char *argv[]){
 
 	cout << "Saving results..." << endl;
 	ofstream res;
+
 	char output[128];
 	sprintf(output, "%s%d_%d_results.txt", outputName, channel_1, channel_2);
+// check if exists
+	std::ifstream infile(output);
+	if (infile.good()) cout << "output file exists already. adding line..."<< endl;
+	bool justAddLine = infile.good();
+	infile.close();
+
 	res.open(output, std::ios_base::app| std::ios_base::out);
+	if(!justAddLine) res << "TThresh" << "\t" << "EThresh" << "\t" << "mean" << "\t" << "mean_error" << "\t" << "FWHM"<< "\t" << "FWHM_error" << "\t" << "num_coincidences" <<  endl;
 	res << TThresh << "\t" << EThresh << "\t" << mean << "\t" << mean_error << "\t" << FWHM<< "\t" << sigma_error*2.35 << "\t" << num_coincidences <<  endl;
 	res.close();
 
