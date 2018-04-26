@@ -29,6 +29,11 @@ char* outputName;
 int CTW = 32; 			// Coincidence timing window given in fine counter bins (1 bin = 50.2 ps)
 int start_channel;
 int coin_counter;
+int channel_1;
+int channel_2;
+int EThresh;
+int TThresh;
+int num_coincidences = 0;
 
 TH1F *histo_FE = new TH1F("frame_entries","frame_entries",20,0,20); //histo for number of events per frame (FE= frame events)
 			// name, name, num_bins, start, end)
@@ -42,6 +47,7 @@ TH1F *histo_energy_coin = new TH1F("Energy_coincident_channels","Energy of coinc
 TH1F *histo_energy_coinlist1 = new TH1F("Energy_coincident_1st","Energy of first coincident channel",5000,0,5000);
 TH1F *histo_energy_coinlist2 = new TH1F("Energy_coincident_2nd","Energy of second coincident channel",15000,0,10000);
 //TH1F *histo_energy_ch2 = new TH1F("Energy_ch2","Energy of ch2", 2000,0,2000); //histogram for debugging purposes, shows the full energy of a specific channel (chosen in the code)
+
 
 TH1F* histo_timediff_1_2 = new TH1F("Histogram", "Time difference between first and second coincident channel", 32, 0, 32*50.2);
 TH1F* histo_timediff_2_3 = new TH1F("timeDiff_2_3", "Time difference between second and third coincident channel", 32, 0, 32*50.2);
@@ -57,10 +63,12 @@ TCanvas *c1=new TCanvas("sipm","sipm",600,600); //canvas for 2d drawing of sipm
 TCanvas *c3=new TCanvas("sipm3d","3dsipm",3000,3000); //canvas for 3d drawing of sipm (simply storing the histogram doesn't work properly)
 TCanvas *c2=new TCanvas("Coincident_Energies"); //canvas for the coincident energies.
 
+TH1F* histo_CT = new TH1F("CT", "Coincidence Time of the two channels", 128, -64*50.2,64*50.2);
 
 void sortList(list<stic3_data_t> *eventList);
 void getT_Diff_First_Last(list<stic3_data_t> *eventList);
 void coinSearch(list<stic3_data_t> *eventList);
+void GetCoincidenceTime(list<stic3_data_t> *eventList);
 void boxdraw(double x1,double y1,double x2,double y2, int index, double max);//--test--might change it with a 2d histogram contour or colored 2d histogram
 void sipmdraw(double max);
 void sipmdraw3d(double max); //function for 3d sipm drawing
@@ -70,15 +78,22 @@ double find_max_array(int length);
 //***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***MAIN***
 int main(int argc, char *argv[]){
 
-	if (argc<5){
-		printf("use: %s file outputName starting_channel_number_from_STiC number_of_coincidences\n",argv[0]);
-		printf("(file extention for outputName will be added automatically) \n\n");
+	if (argc<7){
+		printf("use: %s file outputFolder Channel_1 Chanel_2 T_Threshold E_Threshold\n",argv[0]);
+		printf("(file extention for output file will be added automatically) \n\n");
 		return -1; //simple display or passed parameters
 	}
-	coin_counter=atoi(argv[4])-1;
+
+//	coin_counter=atoi(argv[4])-1;
 	file = argv[1]; //input file passed from argument
 	outputName = argv[2]; //output file passed from argument
-	start_channel=atoi(argv[3]); //starting channel number from argument
+//	start_channel=atoi(argv[3]); //starting channel number from argument
+	channel_1 = atoi(argv[3]);
+	channel_2 = atoi(argv[4]);
+	TThresh = atoi(argv[5]);
+	EThresh = atoi(argv[6]);
+	
+	cout << "ch1:\t" << channel_1 << "\nch2:\t" << channel_2 << "\nTT:\t" << TThresh << "\nET\t" << EThresh << endl;
 
 	// get the tree from the root file
 	TFile f(file);
@@ -118,6 +133,8 @@ int main(int argc, char *argv[]){
 	std::list<stic3_data_t> temp_list; //TEMPORARY LIST FOR COINCIDENCE SEARCH
         temp_list.clear();
 
+
+
 	while( i < (num_entries)) {
 
                 tree->GetEntry(i);
@@ -129,11 +146,12 @@ int main(int argc, char *argv[]){
 			temp_list.push_back(*event);			// regardsless of its channel number
 			i++;
 		}else{
-			histo_FE->Fill(temp_list.size());
-			histo_frames_skipped->Fill(((event->frame_number)-fr_num)-1);
+//			histo_FE->Fill(temp_list.size());
+//			histo_frames_skipped->Fill(((event->frame_number)-fr_num)-1);
 			sortList(&temp_list);				// sort the elements in the list by their time stamp (CALL BY REFERNCE!)
 //			getT_Diff_First_Last(&temp_list);
-			coinSearch(&temp_list);
+			if (temp_list.size() > 1) GetCoincidenceTime(&temp_list);
+//			coinSearch(&temp_list);
 
 			fr_num=event->frame_number;		// set new frame number
 		        temp_list.clear();
@@ -141,6 +159,39 @@ int main(int argc, char *argv[]){
 	        if (i % 100000 == 0) cout<< "\t" << (double)i/num_entries*100 << "\t" << "%" << endl;
 	}
 	cout << "\t" << 100 << "\t" << "%" << endl;
+
+	cout << "Writing histo..." << endl;
+	TCanvas *canvas=new TCanvas("CT","CT",600,600); //canvas for CT
+	TFile *CT_file = new TFile("CT.root", "RECREATE");
+	histo_CT->Draw();
+	histo_CT->Write();
+
+	cout << "Fitting gauss..." << endl;
+	TF1 *f_gauss;
+	f_gauss = new TF1("gaus", "gaus", -2000, 2000);
+	histo_CT->Fit("gaus", "R+");
+	double mean = f_gauss->GetParameter(1);
+	double mean_error = f_gauss->GetParError(1);
+	double sigma = f_gauss->GetParameter(2);
+	double sigma_error = f_gauss->GetParError(2);
+	cout << "fit parameter sigma" << "\t" << sigma << endl;
+	double FWHM = sigma*2.35;
+	cout << "fit FWHM:\t" << FWHM << "\tnum_coincidences:\t" << num_coincidences << endl;
+
+
+	cout << "Saving results..." << endl;
+	ofstream res;
+	char output[128];
+	sprintf(output, "%s%d_%d_results.txt", outputName, channel_1, channel_2);
+	res.open(output, std::ios_base::app| std::ios_base::out);
+	res << TThresh << "\t" << EThresh << "\t" << mean << "\t" << mean_error << "\t" << FWHM<< "\t" << sigma_error*2.35 << "\t" << num_coincidences <<  endl;
+	res.close();
+
+	cout << "TEST FLAG - Program ends here. -> Clean up your code!" << endl;
+	return -1;
+
+	cout << "...finished! " << endl;
+	return 0;
 
 	//***********************************************************
 	// write the histograms to file
@@ -153,7 +204,7 @@ int main(int argc, char *argv[]){
 	TFile* fout=new TFile(out,"RECREATE");
 
 
-	histo_FE->Write();
+//	histo_FE->Write();
 	histo_coin->Write();
 	histo_coincident_channels->Write();
 	histo_cpf->Write();
@@ -213,15 +264,18 @@ cout << "...finished! " << endl;
 void sortList(list<stic3_data_t> *eventList){
 
 //	THIS JUST PRINTS THE LIST BEFORE IT WAS SORTED
-/*
+
 	list<stic3_data_t>::iterator test_it;
 	test_it=eventList->begin();
 	do{
-		cout << test_it->time << "\t" << test_it->T_CC << "\t" << test_it->T_fine <<  endl;
-		++test_it;
+//		cout << test_it->channel <<"\t" << test_it->time << "\t" << test_it->T_CC << "\t" << test_it->T_fine <<  endl;
+		if(test_it->channel != channel_1 && test_it->channel != channel_2) {
+			test_it = eventList->erase(test_it);
+//			cout << "-> Erased entry" << endl;
+		}else {++test_it;}
 	}while (test_it != eventList->end());
-	cout << " -------------------------------------- " << endl;
-*/
+//	cout << " -------------------------------------- " << endl;
+
 
 // SORT THE LIST WITH BUBBLE SORT
 	list<stic3_data_t>::iterator it;
@@ -273,6 +327,27 @@ void getT_Diff_First_Last(list<stic3_data_t> *eventList){			// prints out the ti
 	cout << "time 1:\t" << time_1 << "\ttime last:\t" << time_last << "\ttime diff:\t" << (time_last-time_1) << endl;
 }
 
+void GetCoincidenceTime(list<stic3_data_t> *eventList){
+//	cout << "Getting coincidence time..." << endl;
+	list<stic3_data_t>::iterator it;
+	it = eventList->begin();
+	int ch1 = it->channel;
+	int time1 = it->time;
+	it++;
+	int ch2 = it->channel;
+	if (ch2 == ch1) return;
+	int time2=it->time;
+	int time_diff=0;
+	if(ch1 == channel_1){
+		time_diff = time2-time1;
+	}
+	else{
+		time_diff = time1-time2;
+	}
+//	cout << "time diff:\t" <<  time_diff << endl;
+	histo_CT->Fill(time_diff*50.2);
+	num_coincidences++;
+}
 
 void coinSearch(list<stic3_data_t> *eventList){
 
