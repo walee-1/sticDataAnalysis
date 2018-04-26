@@ -9,12 +9,11 @@ LIBS=-lSpectrum -lrt
 IMPORT_LIBS=
 LDFLAGS=-Wl,--no-as-needed `root-config --glibs`
 
-#binaries=CoinS
-#binaries=Coin16
 binaries=Coin2
+binaries2=Coin16
 obj=src/tdc_ch_values.o
 
-all: $(binaries)
+all: $(binaries) $(binaries2)
 
 reader: src/EventDict.o $(obj)
 	$(CC) $^ $(LDFLAGS) $(LIBS) -o bin/reader

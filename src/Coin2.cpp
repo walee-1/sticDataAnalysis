@@ -183,7 +183,7 @@ int main(int argc, char *argv[]){
 	ofstream res;
 
 	char output[128];
-	sprintf(output, "%s%d_%d_results.txt", outputName, channel_1, channel_2);
+	sprintf(output, "%s%d_%d_Calib_Results.txt", outputName, channel_1, channel_2);
 // check if exists
 	std::ifstream infile(output);
 	if (infile.good()) cout << "output file exists already. adding line..."<< endl;
