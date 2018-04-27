@@ -38,6 +38,7 @@ int main(int argc, char *argv[]){
 	double best_FWHM_error=0;
 	unsigned int highest_num_coins = 0;	// just pre-initialize
 	int bestParameters[2];			// first entry: Best TThresh, second entry: Best EThresh
+	bool combinationFound = false;
 
 	int TThresh;
 	int EThresh;
@@ -49,16 +50,21 @@ int main(int argc, char *argv[]){
 
 	while(!in.eof()){
 		in >> TThresh >> EThresh >> mean >> mean_error >> FWHM >> FWHM_error >> num_coins;
-		if (FWHM < best_FWHM && num_coins > limit) {
+		if (FWHM < best_FWHM && num_coins > limit && FWHM != -1 && FWHM != 0) {
 			best_FWHM = FWHM;
 			best_FWHM_error = FWHM_error;
 			bestParameters[0]=TThresh;
 			bestParameters[1]=EThresh;
+			combinationFound = true;
 		}
 		if (num_coins > highest_num_coins) highest_num_coins = num_coins;
 		}
-	cout << "Best parameter configuration:\t" << bestParameters[0] <<"\t" << bestParameters[1] << endl;
-	cout << "CTR:\t" << best_FWHM << "\t+/-" << best_FWHM_error << endl;
+	if(combinationFound){
+		cout << "Best parameter configuration:\t" << bestParameters[0] <<"\t" << bestParameters[1] << endl;
+		cout << "CTR:\t" << best_FWHM << "\t+/-" << best_FWHM_error << endl;
+	}else{
+		cout << "No parameter combination suitable. Please check your settings at the STiC gui!" << endl;
+	}
 	in.close();
 	return 0;
 }

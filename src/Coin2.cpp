@@ -8,7 +8,7 @@
 #include "TObject.h"
 #include "TColor.h"
 #include "TStyle.h"
-
+#include "TFitResultPtr.h"
 
 #include <iostream>
 #include <stdio.h>
@@ -169,15 +169,29 @@ int main(int argc, char *argv[]){
 	cout << "Fitting gauss..." << endl;
 	TF1 *f_gauss;
 	f_gauss = new TF1("gaus", "gaus", -2000, 2000);
-	histo_CT->Fit("gaus", "R+");
-	double mean = f_gauss->GetParameter(1);
-	double mean_error = f_gauss->GetParError(1);
-	double sigma = f_gauss->GetParameter(2);
-	double sigma_error = f_gauss->GetParError(2);
-	cout << "fit parameter sigma" << "\t" << sigma << endl;
-	double FWHM = sigma*2.35;
-	cout << "fit FWHM:\t" << FWHM << "\tnum_coincidences:\t" << num_coincidences << endl;
+	TFitResultPtr r = histo_CT->Fit("gaus", "R+");
+	Int_t fitStatus = r;
+	cout << "Int_t fitStatus = " << fitStatus << "\t(=0, if OK)"<< endl;
 
+	double mean = -1;
+	double mean_error = -1;
+	double sigma = -1;
+	double sigma_error = -1;
+	double FWHM = -1;
+	double FWHM_error = -1;
+
+	if(fitStatus == 0){
+		mean = f_gauss->GetParameter(1);
+		mean_error = f_gauss->GetParError(1);
+		sigma = f_gauss->GetParameter(2);
+		sigma_error = f_gauss->GetParError(2);
+		cout << "fit parameter sigma" << "\t" << sigma << endl;
+		FWHM = sigma*2.35;
+		FWHM_error = sigma_error*2.35;
+		cout << "fit FWHM:\t" << FWHM << "\tnum_coincidences:\t" << num_coincidences << endl;
+	}else{ 
+		cout << "Bad fit! Setting all values to -1." << endl;
+	}
 
 	cout << "Saving results..." << endl;
 	ofstream res;
@@ -192,7 +206,7 @@ int main(int argc, char *argv[]){
 
 	res.open(output, std::ios_base::app| std::ios_base::out);
 	if(!justAddLine) res << "TThresh" << "\t" << "EThresh" << "\t" << "mean" << "\t" << "mean_error" << "\t" << "FWHM"<< "\t" << "FWHM_error" << "\t" << "num_coincidences" <<  endl;
-	res << TThresh << "\t" << EThresh << "\t" << mean << "\t" << mean_error << "\t" << FWHM<< "\t" << sigma_error*2.35 << "\t" << num_coincidences <<  endl;
+	res << TThresh << "\t" << EThresh << "\t" << mean << "\t" << mean_error << "\t" << FWHM<< "\t" << FWHM_error << "\t" << num_coincidences <<  endl;
 	res.close();
 
 	cout << "TEST FLAG - Program ends here. -> Clean up your code!" << endl;
