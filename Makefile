@@ -11,9 +11,10 @@ LDFLAGS=-Wl,--no-as-needed `root-config --glibs`
 
 binaries=Coin2
 binaries2=Coin16
+binaries3=Analysis
 obj=src/tdc_ch_values.o
 
-all: $(binaries) $(binaries2)
+all: $(binaries) $(binaries2) $(binaries3)
 
 reader: src/EventDict.o $(obj)
 	$(CC) $^ $(LDFLAGS) $(LIBS) -o bin/reader
@@ -26,6 +27,9 @@ Coin16: src/EventDict.o $(obj) src/Coin16.o
 
 CoinS: src/EventDict.o $(obj) src/CoinS.o
 	$(CC) $^ $(CFLAGS) $(LDFLAGS) $(LIBS) -o bin/CoinS
+
+Analysis: src/Analyse_Calibration_Results.cpp
+	$(CC) $^ -o bin/Analysis
 
 src/EventDict.cpp:
 	@echo "Generating Dictionary $@..."
